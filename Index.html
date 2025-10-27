@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Converter (km ↔ mi ↔ nm)</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for a clean, modern look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* Light gray background */
+        }
+        /* Custom focus state for accessibility and aesthetics */
+        input:focus, select:focus, button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-lg bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+
+        <!-- Title and Description -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-600">Distance Unit Converter</h1>
+            <p class="text-gray-500 mt-2">Convert between Kilometers (km), Miles (mi), and Nautical Miles (nm).</p>
+        </header>
+
+        <!-- Input Form Container -->
+        <div class="space-y-6">
+
+            <!-- Input Value -->
+            <div>
+                <label for="inputValue" class="block text-sm font-medium text-gray-700 mb-2">Value to Convert</label>
+                <input type="number" id="inputValue" value="100" min="0" placeholder="Enter number..."
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-lg"
+                       aria-label="Input value for conversion">
+            </div>
+
+            <!-- Conversion Direction Selector -->
+            <div>
+                <label for="conversionDirection" class="block text-sm font-medium text-gray-700 mb-2">Conversion Direction</label>
+                <div class="relative">
+                    <select id="conversionDirection"
+                            class="appearance-none w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-lg pr-10"
+                            aria-label="Select conversion direction">
+                        <option value="km_to_mi">Kilometers (km) → Miles (mi)</option>
+                        <option value="mi_to_km">Miles (mi) → Kilometers (km)</option>
+                        <option value="km_to_nm">Kilometers (km) → Nautical Miles (nm)</option>
+                        <option value="nm_to_km">Nautical Miles (nm) → Kilometers (km)</option>
+                        <option value="mi_to_nm">Miles (mi) → Nautical Miles (nm)</option>
+                        <option value="nm_to_mi">Nautical Miles (nm) → Miles (mi)</option>
+                    </select>
+                    <!-- Custom Arrow Icon -->
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Convert Button -->
+            <button onclick="convertUnit()"
+                    class="w-full py-3 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-200 ease-in-out text-lg transform hover:scale-[1.01] active:scale-[0.99]"
+                    aria-live="polite">
+                Convert
+            </button>
+        </div>
+
+        <!-- Output Result Section -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800 mb-3">Result:</h2>
+            <div id="outputResult"
+                 class="min-h-[64px] flex items-center justify-center p-4 bg-indigo-50 rounded-xl border-2 border-indigo-200 text-3xl font-extrabold text-indigo-800 transition-all duration-300">
+                Enter values and click 'Convert'.
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Conversion Constants ---
+        // 1 mile (mi) = 1.60934 kilometers (km)
+        const MILES_PER_KM = 0.621371;
+        const KM_PER_MILE = 1.60934;
+
+        // 1 Nautical Mile (nm) = 1.852 kilometers (km)
+        const KM_PER_NM = 1.852;
+        const NM_PER_KM = 1 / KM_PER_NM; // ~ 0.539957 nm per km
+
+        // Factor to convert Miles to Nautical Miles (mi -> nm)
+        // 1 mi = 1.60934 km; 1 nm = 1.852 km
+        // 1 mi = 1.60934 / 1.852 nm = ~ 0.868976 nm
+        const NM_PER_MILE = KM_PER_MILE / KM_PER_NM;
+        // 1 nm = 1.852 km; 1 km = 0.621371 mi
+        // 1 nm = 1.852 * 0.621371 mi = ~ 1.15078 mi
+        const MILES_PER_NM = 1 / NM_PER_MILE; // ~ 1.15078 mi per nm
+
+
+        /**
+         * Clears the result area and shows a temporary status message.
+         * @param {string} message - The message to display.
+         * @param {string} className - Tailwind classes for styling (e.g., error red).
+         */
+        function displayMessage(message, className) {
+            const resultElement = document.getElementById('outputResult');
+            resultElement.innerHTML = message;
+            // Reset and apply temporary classes
+            resultElement.className = "min-h-[64px] flex items-center justify-center p-4 rounded-xl transition-all duration-300 " + className;
+
+            // Restore default styling after showing the error/status
+            if (!className.includes('text-3xl')) {
+                setTimeout(() => {
+                     // Reapply the default success state classes
+                    resultElement.className = "min-h-[64px] flex items-center justify-center p-4 bg-indigo-50 rounded-xl border-2 border-indigo-200 text-3xl font-extrabold text-indigo-800 transition-all duration-300";
+                    resultElement.innerHTML = "Enter values and click 'Convert'.";
+                }, 3000);
+            }
+        }
+
+        /**
+         * Main function to perform the unit conversion based on user input and selection.
+         */
+        function convertUnit() {
+            const inputElement = document.getElementById('inputValue');
+            const directionElement = document.getElementById('conversionDirection');
+
+            const inputString = inputElement.value.trim();
+            const inputValue = parseFloat(inputString);
+            const direction = directionElement.value;
+
+            // --- 1. Enhanced Input Validation ---
+            if (inputString === '') {
+                 displayMessage(
+                    '❌ Input value cannot be empty.',
+                    'bg-red-100 border-2 border-red-400 text-red-700 font-medium text-lg'
+                );
+                return;
+            }
+
+            if (isNaN(inputValue)) {
+                displayMessage(
+                    '❌ Please enter a valid number.',
+                    'bg-red-100 border-2 border-red-400 text-red-700 font-medium text-lg'
+                );
+                return;
+            }
+
+            if (inputValue < 0) {
+                 // Although the input field has min="0", users can still paste negative numbers.
+                 displayMessage(
+                    '❌ Please enter a non-negative number.',
+                    'bg-red-100 border-2 border-red-400 text-red-700 font-medium text-lg'
+                );
+                return;
+            }
+            // --- End Input Validation ---
+
+            let result = 0;
+            let resultUnit = '';
+            let originalUnit = '';
+
+            // --- 2. Perform Calculation based on Direction (Updated with Nautical Miles) ---
+            if (direction === 'km_to_mi') {
+                // Kilometers to Miles
+                result = inputValue * MILES_PER_KM;
+                resultUnit = 'mi';
+                originalUnit = 'km';
+            } else if (direction === 'mi_to_km') {
+                // Miles to Kilometers
+                result = inputValue * KM_PER_MILE;
+                resultUnit = 'km';
+                originalUnit = 'mi';
+            } else if (direction === 'km_to_nm') {
+                // Kilometers to Nautical Miles
+                result = inputValue * NM_PER_KM;
+                resultUnit = 'nm';
+                originalUnit = 'km';
+            } else if (direction === 'nm_to_km') {
+                // Nautical Miles to Kilometers
+                result = inputValue * KM_PER_NM;
+                resultUnit = 'km';
+                originalUnit = 'nm';
+            } else if (direction === 'mi_to_nm') {
+                // Miles to Nautical Miles
+                result = inputValue * NM_PER_MILE;
+                resultUnit = 'nm';
+                originalUnit = 'mi';
+            } else if (direction === 'nm_to_mi') {
+                // Nautical Miles to Miles
+                result = inputValue * MILES_PER_NM;
+                resultUnit = 'mi';
+                originalUnit = 'nm';
+            } else {
+                displayMessage(
+                    '⚠️ Invalid conversion direction selected.',
+                    'bg-yellow-100 border-2 border-yellow-400 text-yellow-700 font-medium text-lg'
+                );
+                return;
+            }
+
+            // --- 3. Format and Display Output ---
+            const resultElement = document.getElementById('outputResult');
+            const formattedInput = inputValue.toLocaleString('en-US', { maximumFractionDigits: 4 });
+            const formattedResult = result.toLocaleString('en-US', { maximumFractionDigits: 6 }); // Use 6 for nautical precision
+
+            const outputHtml = `
+                ${formattedResult} ${resultUnit}
+                <span class="text-lg font-normal text-indigo-500 block mt-1">
+                    (${formattedInput} ${originalUnit})
+                </span>
+            `;
+
+            // Display the final result
+            resultElement.innerHTML = outputHtml;
+            // Ensure final result class remains the primary styling
+            resultElement.className = "min-h-[64px] flex flex-col items-center justify-center p-4 bg-indigo-50 rounded-xl border-2 border-indigo-200 text-3xl font-extrabold text-indigo-800 transition-all duration-300";
+        }
+
+        // Optional: Trigger conversion on Enter key press in the input field
+        document.getElementById('inputValue').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                convertUnit();
+                event.preventDefault(); // Prevent default form submission if it were a form
+            }
+        });
+    </script>
+</body>
+</html>
+
